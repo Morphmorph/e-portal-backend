@@ -1,9 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Student, Teacher, Parents, AcademicData
+from .models import Student, Teacher
 import json
-
-# views.py
 
 @csrf_exempt
 def create_user(request):
@@ -56,5 +54,8 @@ def create_user(request):
                 return JsonResponse({'error': 'Invalid user type'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+    elif request.method == 'GET':
+        # Handle GET request (if needed)
+        return JsonResponse({'message': 'GET request received'})
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
