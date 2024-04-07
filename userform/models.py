@@ -1,62 +1,64 @@
 # models.py
-
 from django.db import models
 
-class Student(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
+class User(models.Model):
+    USER_TYPES = (
+        ('student', 'Student'),
+        ('teacher', 'Teacher'),
+    )
+    userType = models.CharField(max_length=10, choices=USER_TYPES)
+    lastName = models.CharField(max_length=100)
+    firstName = models.CharField(max_length=100)
+    middleName = models.CharField(max_length=100)
+    password = models.CharField(max_length=100)
+    contactNumber = models.CharField(max_length=20)
+    address = models.TextField()
+    dob = models.DateField(null=True, blank=True)
+    age = models.IntegerField(null=True, blank=True)
+    gender = models.CharField(max_length=10)
+    # Add other common fields here
+
+    def __str__(self):
+        return f"{self.firstName} {self.lastName}"
+
+    class Meta:
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+
+class Student(User):
     studentID = models.CharField(max_length=100)
-    lastName = models.CharField(max_length=100)
-    firstName = models.CharField(max_length=100)
-    middleName = models.CharField(max_length=100)
-    password = models.CharField(max_length=100)
-    contactNumber = models.CharField(max_length=100)
-    address = models.CharField(max_length=255)
-    gradeLevel = models.IntegerField()
-    section = models.CharField(max_length=100)
+    gradeLevel = models.IntegerField(null=True, blank=True)
+    section = models.CharField(max_length=50)
     adviser = models.CharField(max_length=100)
-    dob = models.DateField()
-    age = models.IntegerField()
-    gender = models.CharField(max_length=10)
-    userType = models.CharField(max_length=20, default='student')  # New field for user type
-
-class Parents(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    student = models.ForeignKey(Student, related_name='parents', on_delete=models.CASCADE)
     mothersName = models.CharField(max_length=100)
-    mothersContact = models.CharField(max_length=100)
+    mothersContact = models.CharField(max_length=20)
     mothersOccupation = models.CharField(max_length=100)
-    m_dob = models.DateField()
-    m_age = models.IntegerField()
+    m_dob = models.DateField(null=True, blank=True)
+    m_age = models.IntegerField(null=True, blank=True)
     fathersName = models.CharField(max_length=100)
-    fathersContact = models.CharField(max_length=100)
+    fathersContact = models.CharField(max_length=20)
     fathersOccupation = models.CharField(max_length=100)
-    f_dob = models.DateField()
-    f_age = models.IntegerField()
+    f_dob = models.DateField(null=True, blank=True)
+    f_age = models.IntegerField(null=True, blank=True)
+    # Add other fields specific to students
 
-class Teacher(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        verbose_name = "Student"
+        verbose_name_plural = "Students"
+
+class Teacher(User):
     employeeID = models.CharField(max_length=100)
-    lastName = models.CharField(max_length=100)
-    firstName = models.CharField(max_length=100)
-    middleName = models.CharField(max_length=100)
-    password = models.CharField(max_length=100)
-    contactNumber = models.CharField(max_length=100)
-    address = models.CharField(max_length=255)
-    dob = models.DateField()
-    age = models.IntegerField()
-    gender = models.CharField(max_length=10)
-    gradeLevel = models.IntegerField()
-    section = models.CharField(max_length=100)
-    userType = models.CharField(max_length=20, default='teacher')  # New field for user type
-
-class AcademicData(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    teacher = models.OneToOneField(Teacher, related_name='academic_data', on_delete=models.CASCADE)
-    lastSchoolAttended = models.CharField(max_length=255)
-    schoolAddress = models.CharField(max_length=255)
-    yearGraduated = models.IntegerField()
+    gradeLevel = models.IntegerField(null=True, blank=True)
+    section = models.CharField(max_length=50)
+    lastSchoolAttended = models.CharField(max_length=100)
+    schoolAddress = models.TextField()
+    yearGraduated = models.IntegerField(null=True, blank=True)
     degree = models.CharField(max_length=100)
-    achievements = models.TextField()
     prcNumber = models.CharField(max_length=100)
-    expirationDate = models.DateField()
-    yearsOfTeaching = models.IntegerField()
+    expirationDate = models.DateField(null=True, blank=True)
+    yearsOfTeaching = models.IntegerField(null=True, blank=True)
+    # Add other fields specific to teachers
+
+    class Meta:
+        verbose_name = "Teacher"
+        verbose_name_plural = "Teachers"

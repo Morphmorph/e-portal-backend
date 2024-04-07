@@ -1,8 +1,6 @@
-# urls.py
-
 from django.urls import path
-from .views import create_user
+from . import views
 
 urlpatterns = [
-    path('create/user/', create_user),
+    path('api/users/', views.create_user),
 ]

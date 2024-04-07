@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-h--(br7%(g%^_7(#fcdbdn6diq$48easf6$fh)_26c(6td6#^%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '192.168.100.76']
+ALLOWED_HOSTS = ['127.0.0.1', '192.168.100.76', 'localhost']
 
 
 # Application definition
@@ -87,16 +87,9 @@ WSGI_APPLICATION = 'bzkRestApisMySQL.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'eportaldb',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'sql_mode': 'STRICT_ALL_TABLES',
-        },
+     'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
