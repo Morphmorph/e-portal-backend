@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import register_user, get_users, TeacherList, add_section_handles, get_section_handles, get_students_attendance, get_enrolled_students_by_section, add_subject_handle, get_teachers_with_subject_handles, get_subject_handles, update_student_attendance, get_student_attendance, user_login, get_user_data, get_teacher_sections, get_students_by_grade_level, add_student_to_section, get_enrolled_students
+from .views import register_user, get_users, TeacherList, add_section_handles, get_student_grades, get_students_grades, get_student_grade_levels, add_grade, promote_student_grade_level, get_section_handles, get_students_attendance, get_enrolled_students_by_section, add_subject_handle, get_teachers_with_subject_handles, get_subject_handles, update_student_attendance, get_student_attendance, user_login, get_user_data, get_teacher_sections, get_students_by_grade_level, add_student_to_section, get_enrolled_students
 
 urlpatterns = [
     path('register/', register_user, name='register_user'),
@@ -20,6 +20,11 @@ urlpatterns = [
     path('attendance/update/', update_student_attendance, name='update_student_attendance'),
     path('attendance/<int:student_id>/', get_students_attendance, name='get_student_attendance'),
     path('attendance/', get_student_attendance, name='get_all_attendance'),
+    path('add_grade/', add_grade, name='add-grade'),
+    path('get_student_grades/<int:student_id>/<str:grade_level>/', get_student_grades, name='get_student_grades'),
+    path('get_student_grades/<int:student_id>/', get_students_grades, name='get_student_grades'),
+    path('students/promote/<int:student_id>/', promote_student_grade_level, name='promote_student_grade_level'),
+    path('get_student_grade_levels/<int:student_id>/', get_student_grade_levels, name='get_student_grade_levels'),
     # Other URL patterns...
     
 ]

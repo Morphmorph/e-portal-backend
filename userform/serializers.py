@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Student, Teacher, Parent, Academic, SectionHandle, User, Enrollment, SubjectHandle, Attendance, Section
+from .models import Student, Teacher, Parent, Academic, SectionHandle, User, Enrollment, SubjectHandle, Attendance, Section, Grade
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 
@@ -85,3 +85,8 @@ class AdminSerializer(serializers.ModelSerializer):
             # Add more fields here if needed
         )
         return user
+    
+class GradeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Grade
+        fields = '__all__'

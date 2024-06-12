@@ -142,23 +142,49 @@ class Enrollment(models.Model):
     student = models.ForeignKey(Student, related_name='enrollments', on_delete=models.CASCADE)
     section = models.ForeignKey(SectionHandle, related_name='enrollments', on_delete=models.CASCADE)
     
+class Grade(models.Model):
+    GRADING_PERIOD_CHOICES = (
+        ('1st Grading', '1st Grading'),
+        ('2nd Grading', '2nd Grading'),
+        ('3rd Grading', '3rd Grading'),
+        ('4th Grading', '4th Grading'),
+    )
+
+    student = models.ForeignKey(Student, related_name='grades', on_delete=models.CASCADE)
+    subject_handle = models.ForeignKey(SubjectHandle, related_name='grades', on_delete=models.CASCADE)
+    grading_period = models.CharField(max_length=20, choices=GRADING_PERIOD_CHOICES)
+    grade = models.DecimalField(max_digits=5, decimal_places=2)
+    grade_level = models.CharField(max_length=100, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.grade_level:
+            self.grade_level = self.student.gradeLevel  # Assign current grade level of student
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.student} - {self.subject_handle.subject} - {self.grading_period} - {self.grade} - {self.grade_level}"
+
+
 class Attendance(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, null=True, blank=True)
     date = models.DateField()
     status = models.CharField(max_length=20)
+    grade_level = models.CharField(max_length=100, null=True)
 
     class Meta:
         unique_together = ('student', 'enrollment', 'date')
 
-    def __str__(self):
-        return f"{self.student} - {self.enrollment.section} - {self.date} - {self.status}"
-
     def save(self, *args, **kwargs):
-        if not self.date:  # Populate date if not provided
+        if not self.date:
             self.date = (timezone.now() + timedelta(hours=8)).date()  # Adjust by adding 8 hours
+        if not self.grade_level:
+            self.grade_level = self.student.gradeLevel  # Assign current grade level of student
         super().save(*args, **kwargs)
-        
+
+    def __str__(self):
+        return f"{self.student} - {self.enrollment.section} - {self.date} - {self.status} - {self.grade_level}"
+
 class User(models.Model):
     ROLES = (
         ('student', 'Student'),

@@ -1,11 +1,13 @@
 from django.http import HttpResponseBadRequest, JsonResponse
+from django.db import transaction
+from django.db.models import Q
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth import authenticate, login
 from rest_framework import generics, status
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from .serializers import StudentSerializer, TeacherSerializer, ParentSerializer, AcademicSerializer, SectionHandleSerializer, SubjectHandleSerializer, LoginSerializer, EnrollmentSerializer, AttendanceSerializer
-from .models import Student, Teacher, Parent, Academic, SectionHandle, User, Enrollment, Subject, SubjectHandle, Attendance, Section
+from .serializers import StudentSerializer, TeacherSerializer, ParentSerializer, AcademicSerializer, SectionHandleSerializer, GradeSerializer, SubjectHandleSerializer, LoginSerializer, EnrollmentSerializer, AttendanceSerializer
+from .models import Student, Teacher, Parent, Academic, SectionHandle, User, Enrollment, Subject, SubjectHandle, Attendance, Section, Grade
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.shortcuts import render, get_object_or_404
@@ -23,6 +25,7 @@ logger = logging.getLogger(__name__)
 def register_user(request):
     role = request.data.get('role')
     if role == 'student':
+        # Code for student registration
         student_serializer = StudentSerializer(data=request.data)
         parent_serializer = ParentSerializer(data=request.data.get('parents'))
         if student_serializer.is_valid() and parent_serializer.is_valid():
@@ -30,7 +33,7 @@ def register_user(request):
             request.data['password'] = make_password(request.data['password'])
             student_id = request.data.get('studentID')
             if Student.objects.filter(studentID=student_id).exists():
-                return Response({'error': 'Student already exists.'}, status=400)
+                return Response({'error': 'Student already exists.'}, status=status.HTTP_400_BAD_REQUEST)
             
             parent_instance = parent_serializer.save()
             student_instance = student_serializer.save(parent=parent_instance)
@@ -42,6 +45,7 @@ def register_user(request):
             return Response(errors, status=400)
 
     elif role == 'teacher':
+        # Code for teacher registration
         teacher_serializer = TeacherSerializer(data=request.data)
         academic_data = request.data.pop('academic', None)  # Remove academic data from request data
         if teacher_serializer.is_valid():
@@ -49,7 +53,7 @@ def register_user(request):
             request.data['password'] = make_password(request.data['password'])
             teacher_id = request.data.get('employeeID')
             if Teacher.objects.filter(employeeID=teacher_id).exists():
-                return Response({'error': 'Teacher already exists.'}, status=400)
+                return Response({'error': 'Teacher already exists.'}, status=status.HTTP_400_BAD_REQUEST)
             
             teacher_instance = teacher_serializer.save()
             
@@ -62,14 +66,15 @@ def register_user(request):
                     teacher_instance.save()
                     return Response({'message': 'Teacher registered successfully'})
                 else:
-                    return Response(academic_serializer.errors, status=400)
+                    return Response({'error': 'Error processing academic data.'}, status=status.HTTP_400_BAD_REQUEST)  # Include appropriate error message
             else:
-                return Response({'error': 'Academic data is required for teacher registration.'}, status=400)
+                return Response({'error': 'Academic data is required for teacher registration.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response(teacher_serializer.errors, status=400)
+            return Response({'error': 'Error validating teacher data.'}, status=status.HTTP_400_BAD_REQUEST)  # Include appropriate error message
 
     else:
         return HttpResponseBadRequest("Invalid role")
+
 
 @api_view(['POST'])
 def add_section_handles(request):
@@ -511,6 +516,7 @@ def get_teachers_with_subject_handles(request, teacher_id):
                         'id': subject_handle.id,
                         'teacher': subject_handle.teacher.id,
                         'subject': subject_handle.subject.name,
+                        'subject_id': subject_handle.subject.id,
                         'grade_level': subject_handle.grade_level,
                         'section_id': subject_handle.section.id,  # Include section ID
                         'section': subject_handle.section.name,  # Retrieve section name
@@ -542,11 +548,14 @@ def update_student_attendance(request):
         section_handle = SectionHandle.objects.get(id=section_handle_id)
         enrollment = Enrollment.objects.get(student=student, section=section_handle)
 
+        # Retrieve the student's grade level
+        grade_level = student.gradeLevel
+
         attendance, created = Attendance.objects.update_or_create(
             student=student,
             enrollment=enrollment,
             date=date,
-            defaults={'status': status_data}
+            defaults={'status': status_data, 'grade_level': grade_level}  # Include grade level when saving attendance
         )
         if created:
             message = 'New attendance record created'
@@ -653,3 +662,131 @@ def get_enrolled_students_by_section(request, section_id):
             return JsonResponse({'error': str(e)}, status=500)
     else:
         return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+    
+@api_view(['POST'])
+def add_grade(request):
+    if request.method == 'POST':
+        try:
+            student_id = request.data.get('student')
+            subject_handle_id = request.data.get('subject_handle')
+            grading_period = request.data.get('grading_period')
+
+            # Check if a grade already exists for the given student, subject handle, and grading period
+            existing_grade = Grade.objects.filter(student_id=student_id, subject_handle_id=subject_handle_id, grading_period=grading_period).first()
+            if existing_grade:
+                # If a grade already exists, you can update the existing grade or reject the request
+                # For simplicity, let's reject the request if a grade already exists
+                return Response({'error': 'A grade already exists for this student in this grading'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Retrieve the student's grade level
+            student = Student.objects.get(id=student_id)
+            grade_level = student.gradeLevel
+
+            serializer = GradeSerializer(data=request.data)
+            if serializer.is_valid():
+                # Include grade level when saving grade
+                serializer.save(grade_level=grade_level)
+                return Response({'error': 'Grade added successfully'}, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return Response({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+@api_view(['GET'])
+def get_student_grades(request, student_id, grade_level):
+    try:
+        # Retrieve the student object
+        student = Student.objects.get(id=student_id)
+        
+        # Filter grades by student and grade level
+        grades = Grade.objects.filter(student=student, grade_level=grade_level)
+        
+        # Serialize the grades
+        serialized_grades = []
+        for grade in grades:
+            serialized_grade = {
+                'id': grade.id,
+                'grading_period': grade.grading_period,
+                'grade': grade.grade,
+                'subject_name': grade.subject_handle.subject.name,
+            }
+            serialized_grades.append(serialized_grade)
+        
+        return Response({'success': True, 'grades': serialized_grades}, status=status.HTTP_200_OK)
+    except Student.DoesNotExist:
+        return Response({'error': f'Student with ID {student_id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_students_grades(request, student_id):
+    subject_handle_id = request.query_params.get('subject_handle_id', None)
+    grading_period = request.query_params.get('grading_period', None)
+    try:
+        grades = Grade.objects.filter(student_id=student_id)
+        if subject_handle_id:
+            grades = grades.filter(subject_handle_id=subject_handle_id)
+        if grading_period:
+            grades = grades.filter(grading_period=grading_period)
+        
+        grades = grades.select_related('subject_handle__subject')
+        
+        if grades.exists():
+            serialized_grades = []
+            for grade in grades:
+                serialized_grade = {
+                    'id': grade.id,
+                    'grading_period': grade.grading_period,
+                    'grade': grade.grade,
+                    'subject_name': grade.subject_handle.subject.name,
+                }
+                serialized_grades.append(serialized_grade)
+            return Response({'success': True, 'grades': serialized_grades}, status=status.HTTP_200_OK)
+        else:
+            return Response({'success': False, 'message': 'No grades found for this student'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['PUT'])
+@transaction.atomic
+def promote_student_grade_level(request, student_id):
+    try:
+        # Retrieve the student object
+        student = Student.objects.get(id=student_id)
+
+        # Determine the new grade level based on the current grade level
+        current_grade_level = student.gradeLevel
+        if current_grade_level.lower() == "kinder":
+            new_grade_level = "Grade 1"
+        else:
+            new_grade_level = f"Grade {int(current_grade_level.split()[1]) + 1}"  # Increment the grade level
+
+        # Update the student's grade level
+        student.gradeLevel = new_grade_level
+        student.save()
+
+        # Remove the student from their current section
+        student_enrollments = student.enrollments.all()
+        for enrollment in student_enrollments:
+            enrollment.delete()
+
+        return Response({'success': True, 'message': f'Student {student_id} grade level promoted to {new_grade_level}'}, status=status.HTTP_200_OK)
+    except Student.DoesNotExist:
+        return Response({'error': f'Student with ID {student_id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def get_student_grade_levels(request, student_id):
+    try:
+        grades = Grade.objects.filter(student_id=student_id)
+        grade_levels = grades.values_list('grade_level', flat=True).distinct()
+        
+        if grade_levels.exists():
+            return Response({'success': True, 'grade_levels': list(grade_levels)}, status=status.HTTP_200_OK)
+        else:
+            return Response({'success': False, 'message': 'No grade levels found for this student'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
